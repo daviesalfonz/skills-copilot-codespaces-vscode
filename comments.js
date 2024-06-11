@@ -1,26 +1,75 @@
 //create web server
-var http = require('http');
-var fs = require('fs');
-var url = require('url');
-var ROOT_DIR = "html/";
-var MongoClient = require('mongodb').MongoClient;
-var db;
+const express = require('express');
+const app = express();
+const port = 3000;
+const fs = require('fs');
+const bodyParser = require('body-parser');
+const path = require('path');
 
-MongoClient.connect("mongodb://localhost:27017/test", function(err, database) {
-    if(err) throw err;
-    db = database;
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+
+//get all comments
+app.get('/comments', (req, res) => {
+    fs.readFile('./comments.json', (err, data) => {
+        if (err) {
+            console.log('Error reading file');
+            return res.status(500).send('Error reading file');
+        }
+        let comments = JSON.parse(data);
+        res.send(comments);
+    });
 });
 
-http.createServer(function (req, res) {
-    var urlObj = url.parse(req.url, true, false);
-    console.log("opening " + ROOT_DIR + urlObj.pathname);
-    fs.readFile(ROOT_DIR + urlObj.pathname, function (err, data) {
+//get comments by id
+app.get('/comments/:id', (req, res) => {
+    fs.readFile('./comments.json', (err, data) => {
         if (err) {
-            res.writeHead(404);
-            res.end(JSON.stringify(err));
-            return;
+            console.log('Error reading file');
+            return res.status(500).send('Error reading file');
         }
-        res.writeHead(200);
-        res.end(data);
+
+        let comments = JSON.parse(data);
+        let comment = comments.find(comment => comment.id == req.params.id);
+        if (!comment) {
+            res.status(404).send('Comment not found');
+        }
+        res.send(comment);
     });
-}).listen(8080);
+});
+
+//add comment
+app.post('/comments', (req, res) => {
+    fs.readFile('./comments.json', (err, data) => {
+        if (err) {
+            console.log('Error reading file');
+            return res.status(500).send('Error reading file');
+        }
+        let comments = JSON.parse(data);
+        let newComment = {
+            id: comments.length + 1,
+            name: req.body.name,
+            comment: req.body.comment
+        };
+        comments.push(newComment);
+        fs.writeFile('./comments.json', JSON.stringify(comments), (err) => {
+            if (err) {
+                console.log('Error writing file');
+                return res.status(500).send('Error writing file');
+            }
+            res.send(newComment);
+        });
+    });
+});
+
+//update comment
+app.put('/comments/:id', (req, res) => {
+    fs.readFile('./comments.json', (err, data) => {
+        if (err) {
+            console.log('Error reading file');
+            return res.status(500).send('Error reading file');
+        }
+        let comments = JSON.parse(data);
+        let comment = comments.find(comment => comment.id == req.params.id);
+        if (!comment) {
+            res
