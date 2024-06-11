@@ -1,75 +1,36 @@
-//create web server
-const express = require('express');
-const app = express();
-const port = 3000;
-const fs = require('fs');
-const bodyParser = require('body-parser');
-const path = require('path');
+// Create web server
+var http = require('http');
+var url = require('url');
+var fs = require('fs');
+var querystring = require('querystring');
+var comments = [];
 
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
-
-//get all comments
-app.get('/comments', (req, res) => {
-    fs.readFile('./comments.json', (err, data) => {
-        if (err) {
-            console.log('Error reading file');
-            return res.status(500).send('Error reading file');
-        }
-        let comments = JSON.parse(data);
-        res.send(comments);
+var server = http.createServer(function(req, res) {
+  var parsedUrl = url.parse(req.url);
+  var path = parsedUrl.pathname;
+  var query = querystring.parse(parsedUrl.query);
+  if (path === '/comments' && req.method === 'POST') {
+    var body = '';
+    req.on('data', function(chunk) {
+      body += chunk;
     });
+    req.on('end', function() {
+      var comment = querystring.parse(body);
+      comments.push(comment);
+      console.log(comments);
+      res.end('Success');
+    });
+  } else if (path === '/comments' && req.method === 'GET') {
+    res.end(JSON.stringify(comments));
+  } else {
+    fs.readFile(__dirname + path, function(err, data) {
+      if (err) {
+        res.statusCode = 404;
+        res.end('Not Found');
+      }
+      res.end(data);
+    });
+  }
 });
 
-//get comments by id
-app.get('/comments/:id', (req, res) => {
-    fs.readFile('./comments.json', (err, data) => {
-        if (err) {
-            console.log('Error reading file');
-            return res.status(500).send('Error reading file');
-        }
-
-        let comments = JSON.parse(data);
-        let comment = comments.find(comment => comment.id == req.params.id);
-        if (!comment) {
-            res.status(404).send('Comment not found');
-        }
-        res.send(comment);
-    });
-});
-
-//add comment
-app.post('/comments', (req, res) => {
-    fs.readFile('./comments.json', (err, data) => {
-        if (err) {
-            console.log('Error reading file');
-            return res.status(500).send('Error reading file');
-        }
-        let comments = JSON.parse(data);
-        let newComment = {
-            id: comments.length + 1,
-            name: req.body.name,
-            comment: req.body.comment
-        };
-        comments.push(newComment);
-        fs.writeFile('./comments.json', JSON.stringify(comments), (err) => {
-            if (err) {
-                console.log('Error writing file');
-                return res.status(500).send('Error writing file');
-            }
-            res.send(newComment);
-        });
-    });
-});
-
-//update comment
-app.put('/comments/:id', (req, res) => {
-    fs.readFile('./comments.json', (err, data) => {
-        if (err) {
-            console.log('Error reading file');
-            return res.status(500).send('Error reading file');
-        }
-        let comments = JSON.parse(data);
-        let comment = comments.find(comment => comment.id == req.params.id);
-        if (!comment) {
-            res
+server.listen(3000);
